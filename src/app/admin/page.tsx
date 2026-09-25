@@ -4,6 +4,8 @@ import AdminLogin from '@/components/AdminLogin';
 import AdminDashboard from '@/components/AdminDashboard';
 import { listGalleries } from '@/lib/galleries';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
 

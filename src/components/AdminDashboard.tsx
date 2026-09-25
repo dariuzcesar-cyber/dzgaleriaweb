@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { AnimatePresence } from 'framer-motion';
 import { LogOut } from 'lucide-react';
-import { signOut } from 'next-auth/react';
 import type { Gallery } from '@/types';
 import GalleryForm from './GalleryForm';
 import GalleryCard from './GalleryCard';
@@ -55,13 +54,13 @@ export default function AdminDashboard({
             height={40}
             className="rounded-full border border-glassborder object-cover"
           />
-          <button
-            onClick={() => signOut({ callbackUrl: '/' })}
+          <a
+            href="/api/admin/auth/logout"
             className="flex items-center gap-1.5 rounded-full border border-glassborder px-3 py-2 text-xs text-white/60 transition hover:border-red-400/40 hover:text-red-400"
           >
             <LogOut className="h-3.5 w-3.5" />
             Salir
-          </button>
+          </a>
         </div>
       </header>
 

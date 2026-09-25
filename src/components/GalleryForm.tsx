@@ -52,7 +52,7 @@ export default function GalleryForm({ onCreated }: GalleryFormProps) {
         body: JSON.stringify({ clientName, slug, driveFolderId, pin }),
       });
 
-      const data = await res.json();
+      const data = (await res.json()) as { error?: string; gallery: Gallery };
 
       if (!res.ok) {
         throw new Error(data.error ?? 'Error al crear la galería.');

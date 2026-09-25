@@ -12,6 +12,11 @@
 .env
 .env.local
 .env*.local
+.dev.vars
+
+# cloudflare
+/.vercel/
+/.wrangler/
 
 # misc
 .DS_Store

@@ -1,9 +1,62 @@
-import { google } from 'googleapis';
 import type { DrivePhoto, GalleryMode } from '@/types';
+import { base64UrlFromBytes, base64UrlFromString } from './base64url';
 
 const FINAL_DELIVERY_FOLDER_NAMES = ['finales', 'retocadas'];
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
+const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 
-function getAuth() {
+// The `googleapis` SDK relies on Node's `http`/`https`/`fs` modules, which
+// don't exist on Cloudflare's Edge/Workers runtime. Everything below talks
+// to the Drive REST API directly via `fetch`, and signs the service-account
+// JWT with the Web Crypto API (`crypto.subtle`) instead of Node's `crypto`.
+
+function pemToArrayBuffer(pem: string): ArrayBuffer {
+  const base64 = pem
+    .replace(/-----BEGIN [^-]+-----/, '')
+    .replace(/-----END [^-]+-----/, '')
+    .replace(/\s+/g, '');
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+async function signServiceAccountJwt(clientEmail: string, privateKeyPem: string): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const payload = {
+    iss: clientEmail,
+    scope: DRIVE_SCOPE,
+    aud: TOKEN_ENDPOINT,
+    exp: now + 3600,
+    iat: now,
+  };
+
+  const unsigned = `${base64UrlFromString(JSON.stringify(header))}.${base64UrlFromString(
+    JSON.stringify(payload)
+  )}`;
+
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    pemToArrayBuffer(privateKeyPem),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    key,
+    new TextEncoder().encode(unsigned)
+  );
+
+  return `${unsigned}.${base64UrlFromBytes(new Uint8Array(signature))}`;
+}
+
+let cachedToken: { token: string; expiresAt: number } | null = null;
+
+async function getAccessToken(): Promise<string> {
   const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
   const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
@@ -13,11 +66,42 @@ function getAuth() {
     );
   }
 
-  return new google.auth.JWT({
-    email: clientEmail,
-    key: privateKey,
-    scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+  if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) {
+    return cachedToken.token;
+  }
+
+  const assertion = await signServiceAccountJwt(clientEmail, privateKey);
+
+  const res = await fetch(TOKEN_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion,
+    }),
   });
+
+  if (!res.ok) {
+    throw new Error(`No se pudo autenticar con la cuenta de servicio de Google Drive (${res.status}).`);
+  }
+
+  const data = (await res.json()) as { access_token: string; expires_in: number };
+  cachedToken = { token: data.access_token, expiresAt: Date.now() + data.expires_in * 1000 };
+  return cachedToken.token;
+}
+
+async function driveFetch(path: string): Promise<unknown> {
+  const accessToken = await getAccessToken();
+  const res = await fetch(`${DRIVE_API}/${path}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Error de Google Drive (${res.status}): ${text.slice(0, 200)}`);
+  }
+
+  return res.json();
 }
 
 function classifyOrientation(
@@ -32,24 +116,35 @@ function classifyOrientation(
   return 'square';
 }
 
-export async function listPhotosInFolder(folderId: string): Promise<DrivePhoto[]> {
-  const auth = getAuth();
-  const drive = google.drive({ version: 'v3', auth });
+interface DriveFile {
+  id?: string;
+  name?: string;
+  mimeType?: string;
+  thumbnailLink?: string;
+  imageMediaMetadata?: { width?: number; height?: number };
+}
 
+interface DriveFileListResponse {
+  files?: DriveFile[];
+  nextPageToken?: string;
+}
+
+export async function listPhotosInFolder(folderId: string): Promise<DrivePhoto[]> {
   const photos: DrivePhoto[] = [];
   let pageToken: string | undefined;
 
   do {
-    const res = await drive.files.list({
+    const params = new URLSearchParams({
       q: `'${folderId}' in parents and mimeType contains 'image/' and trashed = false`,
-      fields:
-        'nextPageToken, files(id, name, imageMediaMetadata(width, height), thumbnailLink)',
-      pageSize: 200,
-      pageToken,
+      fields: 'nextPageToken, files(id, name, imageMediaMetadata(width, height), thumbnailLink)',
+      pageSize: '200',
       orderBy: 'name_natural',
     });
+    if (pageToken) params.set('pageToken', pageToken);
 
-    for (const file of res.data.files ?? []) {
+    const data = (await driveFetch(`files?${params.toString()}`)) as DriveFileListResponse;
+
+    for (const file of data.files ?? []) {
       if (!file.id || !file.name) continue;
       const width = file.imageMediaMetadata?.width ?? null;
       const height = file.imageMediaMetadata?.height ?? null;
@@ -67,23 +162,22 @@ export async function listPhotosInFolder(folderId: string): Promise<DrivePhoto[]
       });
     }
 
-    pageToken = res.data.nextPageToken ?? undefined;
+    pageToken = data.nextPageToken;
   } while (pageToken);
 
   return photos;
 }
 
 async function findFinalDeliveryFolder(parentFolderId: string): Promise<string | null> {
-  const auth = getAuth();
-  const drive = google.drive({ version: 'v3', auth });
-
-  const res = await drive.files.list({
+  const params = new URLSearchParams({
     q: `'${parentFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
     fields: 'files(id, name)',
-    pageSize: 50,
+    pageSize: '50',
   });
 
-  const match = (res.data.files ?? []).find((folder) =>
+  const data = (await driveFetch(`files?${params.toString()}`)) as DriveFileListResponse;
+
+  const match = (data.files ?? []).find((folder) =>
     FINAL_DELIVERY_FOLDER_NAMES.includes((folder.name ?? '').trim().toLowerCase())
   );
 
@@ -102,34 +196,29 @@ export async function resolveGalleryFolder(
   return { folderId: baseFolderId, mode: 'seleccion' };
 }
 
-export async function getFileStream(fileId: string): Promise<NodeJS.ReadableStream> {
-  const auth = getAuth();
-  const drive = google.drive({ version: 'v3', auth });
+/** Raw, still-streaming fetch Response for a file's binary content. */
+export async function getFileResponse(fileId: string): Promise<Response> {
+  const accessToken = await getAccessToken();
+  const res = await fetch(`${DRIVE_API}/files/${fileId}?alt=media`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
 
-  const res = await drive.files.get({ fileId, alt: 'media' }, { responseType: 'stream' });
+  if (!res.ok) {
+    throw new Error(`No se pudo descargar el archivo de Google Drive (${res.status}).`);
+  }
 
-  return res.data as unknown as NodeJS.ReadableStream;
+  return res;
 }
 
 export async function downloadFile(
   fileId: string
-): Promise<{ stream: NodeJS.ReadableStream; mimeType: string; name: string }> {
-  const auth = getAuth();
-  const drive = google.drive({ version: 'v3', auth });
-
-  const metadata = await drive.files.get({
-    fileId,
-    fields: 'name, mimeType',
-  });
-
-  const res = await drive.files.get(
-    { fileId, alt: 'media' },
-    { responseType: 'stream' }
-  );
+): Promise<{ body: ReadableStream<Uint8Array> | null; mimeType: string; name: string }> {
+  const meta = (await driveFetch(`files/${fileId}?fields=name,mimeType`)) as DriveFile;
+  const fileRes = await getFileResponse(fileId);
 
   return {
-    stream: res.data as unknown as NodeJS.ReadableStream,
-    mimeType: metadata.data.mimeType ?? 'application/octet-stream',
-    name: metadata.data.name ?? 'foto.jpg',
+    body: fileRes.body,
+    mimeType: meta.mimeType ?? 'application/octet-stream',
+    name: meta.name ?? 'foto.jpg',
   };
 }

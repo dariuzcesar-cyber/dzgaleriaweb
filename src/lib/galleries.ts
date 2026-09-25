@@ -1,13 +1,12 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { randomUUID } from 'crypto';
 import type { Gallery, PublicGallery } from '@/types';
+import { kvGet, kvPut } from './kv';
 
-const DATA_FILE = path.join(process.cwd(), 'data', 'galleries.json');
+const GALLERIES_KEY = 'galleries';
 
 async function readAll(): Promise<Gallery[]> {
+  const raw = await kvGet(GALLERIES_KEY);
+  if (!raw) return [];
   try {
-    const raw = await fs.readFile(DATA_FILE, 'utf-8');
     return JSON.parse(raw) as Gallery[];
   } catch {
     return [];
@@ -15,7 +14,7 @@ async function readAll(): Promise<Gallery[]> {
 }
 
 async function writeAll(galleries: Gallery[]): Promise<void> {
-  await fs.writeFile(DATA_FILE, JSON.stringify(galleries, null, 2), 'utf-8');
+  await kvPut(GALLERIES_KEY, JSON.stringify(galleries));
 }
 
 export async function listGalleries(): Promise<Gallery[]> {
@@ -46,7 +45,7 @@ export async function createGallery(input: {
   }
 
   const gallery: Gallery = {
-    id: randomUUID(),
+    id: crypto.randomUUID(),
     clientName: input.clientName,
     slug: input.slug,
     driveFolderId: input.driveFolderId,

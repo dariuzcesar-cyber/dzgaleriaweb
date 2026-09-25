@@ -1,18 +1,5 @@
 import type { Metadata } from 'next';
-import { Playfair_Display, Inter } from 'next/font/google';
 import './globals.css';
-
-const playfair = Playfair_Display({
-  subsets: ['latin'],
-  variable: '--font-display',
-  weight: ['500', '600', '700'],
-});
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-sans',
-  weight: ['300', '400', '500', '600'],
-});
 
 export const metadata: Metadata = {
   title: 'Dariuz Aceves — Galerías Privadas',
@@ -21,7 +8,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${playfair.variable} ${inter.variable}`}>
+    <html lang="es">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@500;600;700&display=swap"
+        />
+      </head>
       <body className="min-h-screen bg-obsidian font-sans text-offwhite antialiased">
         {children}
       </body>

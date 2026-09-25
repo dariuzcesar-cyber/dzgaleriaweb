@@ -3,7 +3,6 @@
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { ShieldAlert } from 'lucide-react';
-import { signOut } from 'next-auth/react';
 
 export default function AccessDenied({ email }: { email?: string | null }) {
   return (
@@ -30,12 +29,12 @@ export default function AccessDenied({ email }: { email?: string | null }) {
             )}
           </p>
         </div>
-        <button
-          onClick={() => signOut({ callbackUrl: '/' })}
+        <a
+          href="/"
           className="mt-2 rounded-full border border-white/15 px-5 py-2 text-sm text-white/70 transition hover:border-gold/50 hover:text-gold"
         >
           Volver al inicio
-        </button>
+        </a>
       </motion.div>
     </main>
   );

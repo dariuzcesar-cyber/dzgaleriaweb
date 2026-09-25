@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAdminSession } from '@/lib/googleAuth';
 import { createGallery, listGalleries, deleteGallery } from '@/lib/galleries';
 
+export const runtime = 'edge';
+
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email || session.user.email !== process.env.ALLOWED_ADMIN_EMAIL) {
+  const session = await getAdminSession();
+  if (!session || session.email !== process.env.ALLOWED_ADMIN_EMAIL) {
     return null;
   }
   return session;
@@ -27,7 +28,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
   }
 
-  const body = await request.json();
+  const body = (await request.json()) as {
+    clientName?: string;
+    slug?: string;
+    driveFolderId?: string;
+    pin?: string;
+  };
   const { clientName, slug, driveFolderId, pin } = body ?? {};
 
   if (!clientName || !slug || !driveFolderId || !pin) {
@@ -61,7 +67,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
   }
 
-  const { id } = await request.json();
+  const { id } = (await request.json()) as { id?: string };
   if (!id) {
     return NextResponse.json({ error: 'Falta el id de la galería.' }, { status: 400 });
   }

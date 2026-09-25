@@ -1,9 +1,21 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { Readable } from 'stream';
-import archiver from 'archiver';
+import { downloadZip } from 'client-zip';
 import { getGalleryBySlug } from '@/lib/galleries';
-import { listPhotosInFolder, resolveGalleryFolder, getFileStream } from '@/lib/googleDrive';
+import { listPhotosInFolder, resolveGalleryFolder, getFileResponse } from '@/lib/googleDrive';
+import type { DrivePhoto } from '@/types';
+
+export const runtime = 'edge';
+
+// Fetches each Drive file lazily, one at a time, as client-zip consumes the
+// generator — this keeps concurrent Drive requests (and memory) bounded
+// instead of opening every file's stream up front.
+async function* buildZipEntries(photos: DrivePhoto[]) {
+  for (const photo of photos) {
+    const response = await getFileResponse(photo.id);
+    yield { name: photo.name, input: response };
+  }
+}
 
 export async function GET(_request: Request, { params }: { params: { slug: string } }) {
   const gallery = await getGalleryBySlug(params.slug);
@@ -25,26 +37,16 @@ export async function GET(_request: Request, { params }: { params: { slug: strin
     const photos = await listPhotosInFolder(folderId);
 
     if (photos.length === 0) {
-      return NextResponse.json({ error: 'Esta galería no tiene fotos para descargar.' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Esta galería no tiene fotos para descargar.' },
+        { status: 404 }
+      );
     }
 
-    const archive = archiver('zip', { zlib: { level: 9 } });
-    archive.on('error', (err) => {
-      console.error('Error generando el ZIP de la galería:', err);
-    });
-
-    (async () => {
-      for (const photo of photos) {
-        const stream = await getFileStream(photo.id);
-        archive.append(stream as unknown as Readable, { name: photo.name });
-      }
-      archive.finalize();
-    })();
-
-    const webStream = Readable.toWeb(archive) as unknown as ReadableStream;
+    const zipResponse = downloadZip(buildZipEntries(photos));
     const safeName = gallery.clientName.replace(/[^a-z0-9-_ ]/gi, '').trim() || 'galeria';
 
-    return new NextResponse(webStream, {
+    return new NextResponse(zipResponse.body, {
       headers: {
         'Content-Type': 'application/zip',
         'Content-Disposition': `attachment; filename="${safeName}-galeria-completa.zip"`,

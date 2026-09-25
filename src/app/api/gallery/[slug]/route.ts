@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getGalleryBySlug, toPublicGallery } from '@/lib/galleries';
 
+export const runtime = 'edge';
+
 export async function GET(_request: Request, { params }: { params: { slug: string } }) {
   const gallery = await getGalleryBySlug(params.slug);
 

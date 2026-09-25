@@ -48,7 +48,11 @@ export default function GalleryExperience({ gallery }: { gallery: PublicGallery 
       setLoadError(null);
       try {
         const res = await fetch(`/api/gallery/${gallery.slug}/photos`);
-        const data = await res.json();
+        const data = (await res.json()) as {
+          error?: string;
+          photos: DrivePhoto[];
+          mode?: GalleryMode;
+        };
         if (!res.ok) throw new Error(data.error ?? 'No se pudieron cargar las fotos.');
         if (!cancelled) {
           setPhotos(data.photos);
@@ -96,7 +100,7 @@ export default function GalleryExperience({ gallery }: { gallery: PublicGallery 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pin }),
     });
-    const data = await res.json();
+    const data = (await res.json()) as { valid?: boolean };
 
     if (data.valid) {
       setIsClient(true);

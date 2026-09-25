@@ -1,0 +1,14 @@
+name = "dzgaleriaweb"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
+
+# Create this namespace with `npx wrangler kv namespace create GALLERIES_KV`,
+# then replace `id` below with the id it prints out. For the Git-integration
+# build shown in the Cloudflare Pages dashboard (the one that actually runs
+# in production), you must ALSO add the same binding under
+# Settings -> Functions -> KV namespace bindings — this file's binding is
+# only picked up for local `wrangler pages dev` and Direct Upload deploys.
+[[kv_namespaces]]
+binding = "GALLERIES_KV"
+id = "REEMPLAZA_CON_TU_KV_NAMESPACE_ID"

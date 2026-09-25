@@ -2,7 +2,6 @@
 
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { signIn } from 'next-auth/react';
 
 export default function AdminLogin() {
   return (
@@ -23,12 +22,12 @@ export default function AdminLogin() {
             autorizada.
           </p>
         </div>
-        <button
-          onClick={() => signIn('google', { callbackUrl: '/admin' })}
+        <a
+          href="/api/admin/auth/login"
           className="rounded-full bg-gold px-6 py-3 text-sm font-semibold text-obsidian transition hover:shadow-gold"
         >
           Iniciar sesión con Google
-        </button>
+        </a>
       </motion.div>
     </main>
   );

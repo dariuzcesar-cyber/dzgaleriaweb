@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getGalleryBySlug } from '@/lib/galleries';
 import { listPhotosInFolder, resolveGalleryFolder } from '@/lib/googleDrive';
 
+export const runtime = 'edge';
+
 export async function GET(_request: Request, { params }: { params: { slug: string } }) {
   const gallery = await getGalleryBySlug(params.slug);
 

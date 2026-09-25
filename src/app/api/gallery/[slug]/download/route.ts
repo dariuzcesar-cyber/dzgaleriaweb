@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { Readable } from 'stream';
 import { getGalleryBySlug } from '@/lib/galleries';
 import { downloadFile } from '@/lib/googleDrive';
+
+export const runtime = 'edge';
 
 export async function GET(request: Request, { params }: { params: { slug: string } }) {
   const gallery = await getGalleryBySlug(params.slug);
@@ -27,10 +28,9 @@ export async function GET(request: Request, { params }: { params: { slug: string
   }
 
   try {
-    const { stream, mimeType, name } = await downloadFile(fileId);
-    const webStream = Readable.toWeb(stream as Readable) as unknown as ReadableStream;
+    const { body, mimeType, name } = await downloadFile(fileId);
 
-    return new NextResponse(webStream, {
+    return new NextResponse(body, {
       headers: {
         'Content-Type': mimeType,
         'Content-Disposition': `attachment; filename="${name}"`,

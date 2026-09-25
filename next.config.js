@@ -2,14 +2,24 @@ const NEXTAUTH_URL_FALLBACK = 'https://galeria.dariuzph.com';
 
 // NextAuth (both `next-auth/react` and the core server code) reads
 // `process.env.NEXTAUTH_URL` at module-evaluation time via `new URL(...)`.
-// An *empty string* (not just "unset") makes that throw "Invalid URL",
-// which crashes the build the moment any page imports `next-auth/react`.
-// Some CI/build environments (e.g. Cloudflare Pages) define the variable
-// with an empty value rather than leaving it unset, so this has to be a
-// truthiness check (`||`), not a nullish check (`??`). Setting it here, at
-// the top of next.config.js, guarantees it is fixed before any build tool
-// (plain `next build` or `@cloudflare/next-on-pages`) loads route modules.
-process.env.NEXTAUTH_URL = process.env.NEXTAUTH_URL || NEXTAUTH_URL_FALLBACK;
+// That throws "Invalid URL" the instant any page imports `next-auth/react`
+// if the value is empty, unset, or simply not a valid absolute URL (e.g. a
+// value that got mangled into markdown-link syntax when pasted into a
+// dashboard field: "[https://x.com](https://x.com)"). Validate it for real
+// instead of just checking truthiness, and fix it here, at the very top of
+// next.config.js, before any build tool (plain `next build` or
+// `@cloudflare/next-on-pages`) loads route modules.
+function resolveNextAuthUrl(candidate, fallback) {
+  if (!candidate) return fallback;
+  try {
+    new URL(candidate);
+    return candidate;
+  } catch {
+    return fallback;
+  }
+}
+
+process.env.NEXTAUTH_URL = resolveNextAuthUrl(process.env.NEXTAUTH_URL, NEXTAUTH_URL_FALLBACK);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

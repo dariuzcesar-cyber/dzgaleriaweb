@@ -1,6 +1,6 @@
 export function buildInviteMessage(clientName: string, slug: string, pin: string): string {
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXTAUTH_URL ?? 'https://galeria.dariuzph.com';
+    process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || 'https://galeria.dariuzph.com';
   return `¡Hola! Ya está lista tu galería virtual de ${clientName}. Puedes ver tus fotos y elegir tus 30 favoritas para retoque en tu enlace personal: ${baseUrl}/g/${slug} | Tu PIN de acceso como cliente es: ${pin}`;
 }
 

@@ -14,65 +14,81 @@ async function requireAdmin() {
 }
 
 export async function GET() {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
-  }
+  try {
+    const session = await requireAdmin();
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
+    }
 
-  const galleries = await listGalleries();
-  return NextResponse.json({ galleries });
+    const galleries = await listGalleries();
+    return NextResponse.json({ galleries });
+  } catch (error) {
+    console.error('Error listando galerías:', error);
+    const message = error instanceof Error ? error.message : 'Error inesperado.';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
-  }
-
-  const body = (await request.json()) as {
-    clientName?: string;
-    slug?: string;
-    driveFolderId?: string;
-    pin?: string;
-  };
-  const { clientName, slug, driveFolderId, pin } = body ?? {};
-
-  if (!clientName || !slug || !driveFolderId || !pin) {
-    return NextResponse.json({ error: 'Faltan campos requeridos.' }, { status: 400 });
-  }
-
-  if (!/^\d{4}$/.test(pin)) {
-    return NextResponse.json({ error: 'El PIN debe tener exactamente 4 dígitos.' }, { status: 400 });
-  }
-
-  const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-  if (!slugPattern.test(slug)) {
-    return NextResponse.json(
-      { error: 'El slug solo puede contener minúsculas, números y guiones.' },
-      { status: 400 }
-    );
-  }
-
   try {
+    const session = await requireAdmin();
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
+    }
+
+    const body = (await request.json()) as {
+      clientName?: string;
+      slug?: string;
+      driveFolderId?: string;
+      pin?: string;
+    };
+    const { clientName, slug, driveFolderId, pin } = body ?? {};
+
+    if (!clientName || !slug || !driveFolderId || !pin) {
+      return NextResponse.json({ error: 'Faltan campos requeridos.' }, { status: 400 });
+    }
+
+    if (!/^\d{4}$/.test(pin)) {
+      return NextResponse.json(
+        { error: 'El PIN debe tener exactamente 4 dígitos.' },
+        { status: 400 }
+      );
+    }
+
+    const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+    if (!slugPattern.test(slug)) {
+      return NextResponse.json(
+        { error: 'El slug solo puede contener minúsculas, números y guiones.' },
+        { status: 400 }
+      );
+    }
+
     const gallery = await createGallery({ clientName, slug, driveFolderId, pin });
     return NextResponse.json({ gallery }, { status: 201 });
   } catch (error) {
+    console.error('Error creando galería:', error);
     const message = error instanceof Error ? error.message : 'Error al crear la galería.';
     return NextResponse.json({ error: message }, { status: 409 });
   }
 }
 
 export async function DELETE(request: Request) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
-  }
+  try {
+    const session = await requireAdmin();
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
+    }
 
-  const { id } = (await request.json()) as { id?: string };
-  if (!id) {
-    return NextResponse.json({ error: 'Falta el id de la galería.' }, { status: 400 });
-  }
+    const { id } = (await request.json()) as { id?: string };
+    if (!id) {
+      return NextResponse.json({ error: 'Falta el id de la galería.' }, { status: 400 });
+    }
 
-  await deleteGallery(id);
-  return NextResponse.json({ ok: true });
+    await deleteGallery(id);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error('Error eliminando galería:', error);
+    const message = error instanceof Error ? error.message : 'Error inesperado.';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

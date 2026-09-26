@@ -18,21 +18,21 @@ async function* buildZipEntries(photos: DrivePhoto[]) {
 }
 
 export async function GET(_request: Request, { params }: { params: { slug: string } }) {
-  const gallery = await getGalleryBySlug(params.slug);
-
-  if (!gallery) {
-    return NextResponse.json({ error: 'Galería no encontrada.' }, { status: 404 });
-  }
-
-  const hasAccess = cookies().get(`dz_client_${gallery.slug}`)?.value === 'granted';
-  if (!hasAccess) {
-    return NextResponse.json(
-      { error: 'Ingresa tu PIN de cliente para descargar la galería.' },
-      { status: 403 }
-    );
-  }
-
   try {
+    const gallery = await getGalleryBySlug(params.slug);
+
+    if (!gallery) {
+      return NextResponse.json({ error: 'Galería no encontrada.' }, { status: 404 });
+    }
+
+    const hasAccess = cookies().get(`dz_client_${gallery.slug}`)?.value === 'granted';
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: 'Ingresa tu PIN de cliente para descargar la galería.' },
+        { status: 403 }
+      );
+    }
+
     const { folderId } = await resolveGalleryFolder(gallery.driveFolderId);
     const photos = await listPhotosInFolder(folderId);
 
@@ -53,6 +53,7 @@ export async function GET(_request: Request, { params }: { params: { slug: strin
       },
     });
   } catch (error) {
+    console.error('Error generando el ZIP de la galería:', error);
     const message = error instanceof Error ? error.message : 'Error al generar la descarga.';
     return NextResponse.json({ error: message }, { status: 502 });
   }

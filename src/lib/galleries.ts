@@ -59,6 +59,28 @@ export async function createGallery(input: {
   return gallery;
 }
 
+export async function updateGallery(
+  id: string,
+  updates: Partial<Pick<Gallery, 'clientName' | 'slug' | 'driveFolderId' | 'pin'>>
+): Promise<Gallery> {
+  const galleries = await readAll();
+  const index = galleries.findIndex((g) => g.id === id);
+
+  if (index === -1) {
+    throw new Error('Galería no encontrada.');
+  }
+
+  if (updates.slug && updates.slug !== galleries[index].slug) {
+    if (galleries.some((g) => g.slug === updates.slug)) {
+      throw new Error('Ya existe una galería con ese slug.');
+    }
+  }
+
+  galleries[index] = { ...galleries[index], ...updates };
+  await writeAll(galleries);
+  return galleries[index];
+}
+
 export async function deleteGallery(id: string): Promise<void> {
   const galleries = await readAll();
   await writeAll(galleries.filter((g) => g.id !== id));

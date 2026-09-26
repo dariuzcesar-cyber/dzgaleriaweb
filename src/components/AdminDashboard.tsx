@@ -34,6 +34,10 @@ export default function AdminDashboard({
     });
   }
 
+  function handleUpdated(updated: Gallery) {
+    setGalleries((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
+  }
+
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-5 py-10 sm:px-8">
       <header className="mb-10 flex items-center justify-between gap-4">
@@ -79,7 +83,12 @@ export default function AdminDashboard({
             <div className="grid gap-4 sm:grid-cols-2">
               <AnimatePresence>
                 {galleries.map((gallery) => (
-                  <GalleryCard key={gallery.id} gallery={gallery} onDelete={handleDelete} />
+                  <GalleryCard
+                    key={gallery.id}
+                    gallery={gallery}
+                    onDelete={handleDelete}
+                    onUpdated={handleUpdated}
+                  />
                 ))}
               </AnimatePresence>
             </div>

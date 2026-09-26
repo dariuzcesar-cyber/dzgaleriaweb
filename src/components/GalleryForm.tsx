@@ -115,13 +115,13 @@ export default function GalleryForm({ onCreated }: GalleryFormProps) {
 
         <div className="space-y-1.5">
           <label className="text-xs uppercase tracking-wide text-white/50">
-            ID de carpeta de Google Drive
+            Carpeta de Google Drive (ID o enlace completo)
           </label>
           <input
             required
             value={driveFolderId}
             onChange={(e) => setDriveFolderId(e.target.value)}
-            placeholder="1A2b3C4d5E6f..."
+            placeholder="https://drive.google.com/drive/folders/..."
             className="w-full rounded-lg border border-glassborder bg-charcoal px-3 py-2 text-sm text-offwhite outline-none transition focus:border-gold/60"
           />
         </div>

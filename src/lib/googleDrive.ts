@@ -223,3 +223,29 @@ export async function downloadFile(
     name: meta.name ?? 'foto.jpg',
   };
 }
+
+// Google Drive IDs are alphanumeric plus `-`/`_`, typically 25-44 chars.
+const DRIVE_ID_PATTERN = /^[a-zA-Z0-9_-]{10,}$/;
+
+// Extracts a folder/file ID from the various URL shapes Google Drive's
+// "Share" dialog can produce, or passes the input through unchanged if it
+// isn't a recognizable URL (assumed to already be a raw ID). Matching only
+// `[a-zA-Z0-9_-]` means characters that were never valid in a Drive ID to
+// begin with — e.g. a stray `|` from a copy-paste/font-rendering mixup —
+// can't end up in the extracted result when a full URL is pasted.
+export function extractDriveFolderId(input: string): string {
+  const trimmed = input.trim();
+
+  const patterns = [/\/folders\/([a-zA-Z0-9_-]+)/, /\/file\/d\/([a-zA-Z0-9_-]+)/, /[?&]id=([a-zA-Z0-9_-]+)/];
+
+  for (const pattern of patterns) {
+    const match = trimmed.match(pattern);
+    if (match) return match[1];
+  }
+
+  return trimmed;
+}
+
+export function isValidDriveId(id: string): boolean {
+  return DRIVE_ID_PATTERN.test(id);
+}

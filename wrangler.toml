@@ -1,4 +1,5 @@
 name = "dzgaleriaweb"
+compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".vercel/output/static"
 
 # Create this namespace with `npx wrangler kv namespace create GALLERIES_KV`,

@@ -11,4 +11,4 @@ pages_build_output_dir = ".vercel/output/static"
 # only picked up for local `wrangler pages dev` and Direct Upload deploys.
 [[kv_namespaces]]
 binding = "GALLERIES_KV"
-id = "REEMPLAZA_CON_TU_KV_NAMESPACE_ID"
+id = "ba2e984653eb4f62a6a0217dc1683297"

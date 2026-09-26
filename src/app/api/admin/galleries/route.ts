@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/googleAuth';
 import { createGallery, listGalleries, deleteGallery } from '@/lib/galleries';
+import { getEnvVar } from '@/lib/env';
 
 export const runtime = 'edge';
 
 async function requireAdmin() {
   const session = await getAdminSession();
-  if (!session || session.email !== process.env.ALLOWED_ADMIN_EMAIL) {
+  if (!session || session.email !== getEnvVar('ALLOWED_ADMIN_EMAIL')) {
     return null;
   }
   return session;

@@ -8,6 +8,7 @@ import {
   SESSION_COOKIE_MAX_AGE,
   OAUTH_STATE_COOKIE_NAME,
 } from '@/lib/googleAuth';
+import { getEnvVar } from '@/lib/env';
 
 export const runtime = 'edge';
 
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
     if (
       !payload.email ||
       !payload.email_verified ||
-      payload.email !== process.env.ALLOWED_ADMIN_EMAIL
+      payload.email !== getEnvVar('ALLOWED_ADMIN_EMAIL')
     ) {
       const response = NextResponse.redirect(`${origin}/acceso-denegado`);
       response.cookies.delete(OAUTH_STATE_COOKIE_NAME);

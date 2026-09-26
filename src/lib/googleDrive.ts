@@ -1,5 +1,6 @@
 import type { DrivePhoto, GalleryMode } from '@/types';
 import { base64UrlFromBytes, base64UrlFromString } from './base64url';
+import { getEnvVar } from './env';
 
 const FINAL_DELIVERY_FOLDER_NAMES = ['finales', 'retocadas'];
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
@@ -57,8 +58,8 @@ async function signServiceAccountJwt(clientEmail: string, privateKeyPem: string)
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
 async function getAccessToken(): Promise<string> {
-  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  const clientEmail = getEnvVar('GOOGLE_CLIENT_EMAIL');
+  const privateKey = getEnvVar('GOOGLE_PRIVATE_KEY')?.replace(/\\n/g, '\n');
 
   if (!clientEmail || !privateKey) {
     throw new Error(

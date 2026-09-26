@@ -5,6 +5,7 @@ import {
   bytesFromBase64Url,
   jsonFromBase64Url,
 } from './base64url';
+import { requireEnvVar } from './env';
 
 // A minimal, hand-rolled Google OAuth2 (OIDC) admin-gate flow, using only
 // fetch + Web Crypto — no NextAuth. NextAuth v4's core (CSRF via Node
@@ -22,12 +23,6 @@ const GOOGLE_ISSUERS = ['https://accounts.google.com', 'accounts.google.com'];
 const SESSION_COOKIE = 'dz_admin_session';
 const OAUTH_STATE_COOKIE = 'dz_oauth_state';
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`Falta la variable de entorno ${name}.`);
-  return value;
-}
 
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -52,7 +47,7 @@ async function hmacSign(secret: string, data: string): Promise<string> {
 
 export function buildGoogleAuthUrl(state: string, redirectUri: string): string {
   const params = new URLSearchParams({
-    client_id: requireEnv('GOOGLE_CLIENT_ID'),
+    client_id: requireEnvVar('GOOGLE_CLIENT_ID'),
     redirect_uri: redirectUri,
     response_type: 'code',
     scope: 'openid email profile',
@@ -68,8 +63,8 @@ export async function exchangeCodeForIdToken(code: string, redirectUri: string):
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       code,
-      client_id: requireEnv('GOOGLE_CLIENT_ID'),
-      client_secret: requireEnv('GOOGLE_CLIENT_SECRET'),
+      client_id: requireEnvVar('GOOGLE_CLIENT_ID'),
+      client_secret: requireEnvVar('GOOGLE_CLIENT_SECRET'),
       redirect_uri: redirectUri,
       grant_type: 'authorization_code',
     }),
@@ -157,7 +152,7 @@ export async function verifyGoogleIdToken(idToken: string): Promise<GoogleIdToke
 
   if (!isValid) throw new Error('La firma del token de Google no es válida.');
   if (!GOOGLE_ISSUERS.includes(payload.iss)) throw new Error('Emisor del token inesperado.');
-  if (payload.aud !== requireEnv('GOOGLE_CLIENT_ID')) {
+  if (payload.aud !== requireEnvVar('GOOGLE_CLIENT_ID')) {
     throw new Error('El token no corresponde a esta aplicación.');
   }
   if (payload.exp < Math.floor(Date.now() / 1000)) throw new Error('El token de Google expiró.');
@@ -175,7 +170,7 @@ export interface AdminSession {
 export async function createSessionToken(email: string, name: string | null): Promise<string> {
   const exp = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS;
   const encodedPayload = base64UrlFromString(JSON.stringify({ email, name, exp }));
-  const signature = await hmacSign(requireEnv('SESSION_SECRET'), encodedPayload);
+  const signature = await hmacSign(requireEnvVar('SESSION_SECRET'), encodedPayload);
   return `${encodedPayload}.${signature}`;
 }
 
@@ -183,7 +178,7 @@ export async function verifySessionToken(token: string): Promise<AdminSession | 
   const [encodedPayload, signature] = token.split('.');
   if (!encodedPayload || !signature) return null;
 
-  const expectedSignature = await hmacSign(requireEnv('SESSION_SECRET'), encodedPayload);
+  const expectedSignature = await hmacSign(requireEnvVar('SESSION_SECRET'), encodedPayload);
   if (!timingSafeEqual(signature, expectedSignature)) return null;
 
   try {

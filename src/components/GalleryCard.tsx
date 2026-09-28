@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Copy, Check, ExternalLink, Trash2, Pencil, X, Loader2, Save } from 'lucide-react';
 import type { Gallery } from '@/types';
+import { DEFAULT_PHOTO_LIMIT } from '@/types';
 import { buildInviteMessage } from '@/lib/whatsapp';
+import PhotoLimitField from './PhotoLimitField';
 
 interface GalleryCardProps {
   gallery: Gallery;
@@ -22,10 +24,16 @@ export default function GalleryCard({ gallery, onDelete, onUpdated }: GalleryCar
     slug: gallery.slug,
     driveFolderId: gallery.driveFolderId,
     pin: gallery.pin,
+    photoLimit: gallery.photoLimit ?? DEFAULT_PHOTO_LIMIT,
   });
 
   async function handleCopyInvite() {
-    const message = buildInviteMessage(gallery.clientName, gallery.slug, gallery.pin);
+    const message = buildInviteMessage(
+      gallery.clientName,
+      gallery.slug,
+      gallery.pin,
+      gallery.photoLimit ?? DEFAULT_PHOTO_LIMIT
+    );
     await navigator.clipboard.writeText(message);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -37,6 +45,7 @@ export default function GalleryCard({ gallery, onDelete, onUpdated }: GalleryCar
       slug: gallery.slug,
       driveFolderId: gallery.driveFolderId,
       pin: gallery.pin,
+      photoLimit: gallery.photoLimit ?? DEFAULT_PHOTO_LIMIT,
     });
     setEditError(null);
     setEditing(true);
@@ -129,6 +138,11 @@ export default function GalleryCard({ gallery, onDelete, onUpdated }: GalleryCar
           />
         </div>
 
+        <PhotoLimitField
+          value={form.photoLimit}
+          onChange={(photoLimit) => setForm((f) => ({ ...f, photoLimit }))}
+        />
+
         {editError && <p className="text-sm text-red-400">{editError}</p>}
 
         <div className="flex gap-2 pt-1">
@@ -181,7 +195,10 @@ export default function GalleryCard({ gallery, onDelete, onUpdated }: GalleryCar
 
       <div className="flex items-center justify-between text-xs text-white/50">
         <span>Creada el {createdDate}</span>
-        <span className="tracking-widest text-white/70">PIN {gallery.pin}</span>
+        <span className="flex items-center gap-3">
+          <span className="text-white/50">Límite {gallery.photoLimit ?? DEFAULT_PHOTO_LIMIT}</span>
+          <span className="tracking-widest text-white/70">PIN {gallery.pin}</span>
+        </span>
       </div>
 
       <div className="flex flex-wrap gap-2">

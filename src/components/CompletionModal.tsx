@@ -6,6 +6,7 @@ import { Sparkles, Send, Copy, Check, X } from 'lucide-react';
 
 interface CompletionModalProps {
   open: boolean;
+  photoLimit: number;
   onClose: () => void;
   onSendWhatsApp: () => void;
   onCopyList: () => void;
@@ -43,6 +44,7 @@ function ConfettiBurst() {
 
 export default function CompletionModal({
   open,
+  photoLimit,
   onClose,
   onSendWhatsApp,
   onCopyList,
@@ -86,7 +88,7 @@ export default function CompletionModal({
               </div>
 
               <h2 className="font-display text-xl font-semibold text-offwhite">
-                ¡Has completado tus 30 fotos!
+                ¡Has completado tus {photoLimit} fotos!
               </h2>
               <p className="text-sm text-white/60">
                 ¿Deseas enviar tu lista ahora a Dariuz para comenzar el retoque?

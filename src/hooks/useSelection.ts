@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-export const MAX_SELECTION = 30;
+export type ToggleResult = 'added' | 'removed' | 'limit-reached';
 
-export function useSelection(slug: string) {
+export function useSelection(slug: string, maxSelection: number) {
   const storageKey = `dz-selection-${slug}`;
   const [selected, setSelected] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -30,19 +30,29 @@ export function useSelection(slug: string) {
 
   const isSelected = useCallback((id: string) => selected.includes(id), [selected]);
 
-  const toggle = useCallback((id: string) => {
-    setSelected((prev) => {
-      if (prev.includes(id)) {
-        return prev.filter((p) => p !== id);
-      }
-      if (prev.length >= MAX_SELECTION) {
-        return prev;
-      }
-      return [...prev, id];
-    });
-  }, []);
+  const toggle = useCallback(
+    (id: string): ToggleResult => {
+      let result: ToggleResult = 'added';
+
+      setSelected((prev) => {
+        if (prev.includes(id)) {
+          result = 'removed';
+          return prev.filter((p) => p !== id);
+        }
+        if (prev.length >= maxSelection) {
+          result = 'limit-reached';
+          return prev;
+        }
+        result = 'added';
+        return [...prev, id];
+      });
+
+      return result;
+    },
+    [maxSelection]
+  );
 
   const clear = useCallback(() => setSelected([]), []);
 
-  return { selected, isSelected, toggle, clear, hydrated, max: MAX_SELECTION };
+  return { selected, isSelected, toggle, clear, hydrated, max: maxSelection };
 }

@@ -1,13 +1,22 @@
 import type { Gallery, PublicGallery } from '@/types';
+import { DEFAULT_PHOTO_LIMIT } from '@/types';
 import { kvGet, kvPut } from './kv';
 
 const GALLERIES_KEY = 'galleries';
+
+// Backward compatibility: galleries stored before `photoLimit` existed have
+// no such field in KV. Normalize it here, once, on every read path, rather
+// than scattering `?? DEFAULT_PHOTO_LIMIT` fallbacks across the codebase.
+function withDefaults(gallery: Gallery): Gallery {
+  return { ...gallery, photoLimit: gallery.photoLimit ?? DEFAULT_PHOTO_LIMIT };
+}
 
 async function readAll(): Promise<Gallery[]> {
   const raw = await kvGet(GALLERIES_KEY);
   if (!raw) return [];
   try {
-    return JSON.parse(raw) as Gallery[];
+    const galleries = JSON.parse(raw) as Gallery[];
+    return galleries.map(withDefaults);
   } catch {
     return [];
   }
@@ -37,6 +46,7 @@ export async function createGallery(input: {
   slug: string;
   driveFolderId: string;
   pin: string;
+  photoLimit?: number;
 }): Promise<Gallery> {
   const galleries = await readAll();
 
@@ -52,6 +62,7 @@ export async function createGallery(input: {
     pin: input.pin,
     status: 'active',
     createdAt: new Date().toISOString(),
+    photoLimit: input.photoLimit ?? DEFAULT_PHOTO_LIMIT,
   };
 
   galleries.push(gallery);
@@ -61,7 +72,7 @@ export async function createGallery(input: {
 
 export async function updateGallery(
   id: string,
-  updates: Partial<Pick<Gallery, 'clientName' | 'slug' | 'driveFolderId' | 'pin'>>
+  updates: Partial<Pick<Gallery, 'clientName' | 'slug' | 'driveFolderId' | 'pin' | 'photoLimit'>>
 ): Promise<Gallery> {
   const galleries = await readAll();
   const index = galleries.findIndex((g) => g.id === id);

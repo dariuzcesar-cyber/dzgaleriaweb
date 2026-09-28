@@ -42,8 +42,9 @@ export async function POST(request: Request) {
       slug?: string;
       driveFolderId?: string;
       pin?: string;
+      photoLimit?: number;
     };
-    const { clientName, slug, driveFolderId, pin } = body ?? {};
+    const { clientName, slug, driveFolderId, pin, photoLimit } = body ?? {};
 
     if (!clientName || !slug || !driveFolderId || !pin) {
       return NextResponse.json({ error: 'Faltan campos requeridos.' }, { status: 400 });
@@ -72,11 +73,19 @@ export async function POST(request: Request) {
       );
     }
 
+    if (photoLimit !== undefined && (!Number.isInteger(photoLimit) || photoLimit < 1 || photoLimit > 1000)) {
+      return NextResponse.json(
+        { error: 'El límite de fotos debe ser un número entero entre 1 y 1000.' },
+        { status: 400 }
+      );
+    }
+
     const gallery = await createGallery({
       clientName,
       slug,
       driveFolderId: cleanedFolderId,
       pin,
+      photoLimit,
     });
     return NextResponse.json({ gallery }, { status: 201 });
   } catch (error) {

@@ -33,8 +33,7 @@ export default function SelectionBar({
           <div className="flex items-center gap-2 text-sm text-offwhite">
             <Heart className="h-4 w-4 text-gold" fill="currentColor" />
             <span>
-              <span className="font-semibold text-gold">{count}</span> / {max} fotos
-              seleccionadas para retoque
+              Seleccionadas: <span className="font-semibold text-gold">{count}</span> / {max}
             </span>
           </div>
 

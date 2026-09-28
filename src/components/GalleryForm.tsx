@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Dices, Plus, Loader2 } from 'lucide-react';
 import type { Gallery } from '@/types';
+import { DEFAULT_PHOTO_LIMIT } from '@/types';
+import PhotoLimitField from './PhotoLimitField';
 
 function slugify(value: string): string {
   return value
@@ -30,6 +32,7 @@ export default function GalleryForm({ onCreated }: GalleryFormProps) {
   const [slugTouched, setSlugTouched] = useState(false);
   const [driveFolderId, setDriveFolderId] = useState('');
   const [pin, setPin] = useState(randomPin());
+  const [photoLimit, setPhotoLimit] = useState(DEFAULT_PHOTO_LIMIT);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,7 +52,7 @@ export default function GalleryForm({ onCreated }: GalleryFormProps) {
       const res = await fetch('/api/admin/galleries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientName, slug, driveFolderId, pin }),
+        body: JSON.stringify({ clientName, slug, driveFolderId, pin, photoLimit }),
       });
 
       const data = (await res.json()) as { error?: string; gallery: Gallery };
@@ -64,6 +67,7 @@ export default function GalleryForm({ onCreated }: GalleryFormProps) {
       setSlugTouched(false);
       setDriveFolderId('');
       setPin(randomPin());
+      setPhotoLimit(DEFAULT_PHOTO_LIMIT);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error inesperado.');
     } finally {
@@ -148,6 +152,8 @@ export default function GalleryForm({ onCreated }: GalleryFormProps) {
             </button>
           </div>
         </div>
+
+        <PhotoLimitField value={photoLimit} onChange={setPhotoLimit} />
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}

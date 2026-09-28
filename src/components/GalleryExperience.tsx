@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ImageOff } from 'lucide-react';
+import { ImageOff, Heart } from 'lucide-react';
 import type { DrivePhoto, GalleryMode, PublicGallery } from '@/types';
-import { useSelection, MAX_SELECTION } from '@/hooks/useSelection';
+import { DEFAULT_PHOTO_LIMIT } from '@/types';
+import { useSelection } from '@/hooks/useSelection';
 import { buildSelectionMessage, buildWhatsAppLink } from '@/lib/whatsapp';
 import GalleryNavbar from './GalleryNavbar';
 import GalleryFooter from './GalleryFooter';
@@ -14,11 +15,14 @@ import LightboxModal from './LightboxModal';
 import SelectionBar from './SelectionBar';
 import PinModal from './PinModal';
 import CompletionModal from './CompletionModal';
+import LimitReachedToast from './LimitReachedToast';
 
 const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '523122247792';
 const CLIENT_FLAG_PREFIX = 'dz-client-verified-';
 
 export default function GalleryExperience({ gallery }: { gallery: PublicGallery }) {
+  const photoLimit = gallery.photoLimit ?? DEFAULT_PHOTO_LIMIT;
+
   const [photos, setPhotos] = useState<DrivePhoto[]>([]);
   const [mode, setMode] = useState<GalleryMode>('seleccion');
   const [loading, setLoading] = useState(true);
@@ -31,8 +35,9 @@ export default function GalleryExperience({ gallery }: { gallery: PublicGallery 
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [filter, setFilter] = useState<'all' | 'selected'>('all');
   const [completionOpen, setCompletionOpen] = useState(false);
+  const [limitMessage, setLimitMessage] = useState<string | null>(null);
 
-  const { selected, isSelected, toggle } = useSelection(gallery.slug);
+  const { selected, isSelected, toggle } = useSelection(gallery.slug, photoLimit);
   const prevCountRef = useRef(0);
 
   useEffect(() => {
@@ -76,13 +81,19 @@ export default function GalleryExperience({ gallery }: { gallery: PublicGallery 
   useEffect(() => {
     if (
       mode === 'seleccion' &&
-      selected.length === MAX_SELECTION &&
-      prevCountRef.current < MAX_SELECTION
+      selected.length === photoLimit &&
+      prevCountRef.current < photoLimit
     ) {
       setCompletionOpen(true);
     }
     prevCountRef.current = selected.length;
-  }, [selected.length, mode]);
+  }, [selected.length, mode, photoLimit]);
+
+  useEffect(() => {
+    if (!limitMessage) return;
+    const timeout = setTimeout(() => setLimitMessage(null), 3000);
+    return () => clearTimeout(timeout);
+  }, [limitMessage]);
 
   const visiblePhotos = useMemo(
     () => (filter === 'selected' ? photos.filter((p) => isSelected(p.id)) : photos),
@@ -122,7 +133,10 @@ export default function GalleryExperience({ gallery }: { gallery: PublicGallery 
       handleLockedAction();
       return;
     }
-    toggle(photo.id);
+    const result = toggle(photo.id);
+    if (result === 'limit-reached') {
+      setLimitMessage(`Has alcanzado el límite de ${photoLimit} fotos de tu paquete.`);
+    }
   }
 
   function handleDownload(photo: DrivePhoto) {
@@ -142,7 +156,7 @@ export default function GalleryExperience({ gallery }: { gallery: PublicGallery 
   }
 
   function whatsAppMessage() {
-    return buildSelectionMessage('Cliente', gallery.clientName, selectedFileNames);
+    return buildSelectionMessage('Cliente', gallery.clientName, selectedFileNames, photoLimit);
   }
 
   function handleSendWhatsApp() {
@@ -170,18 +184,27 @@ export default function GalleryExperience({ gallery }: { gallery: PublicGallery 
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="mb-6"
+          className="mb-6 flex flex-wrap items-start justify-between gap-3"
         >
-          <h1 className="font-display text-2xl font-semibold text-offwhite sm:text-3xl">
-            {gallery.clientName}
-          </h1>
-          <p className="mt-1 text-sm text-white/50">
-            {mode === 'entrega-final'
-              ? 'Descarga tus fotos finales en la calidad original desde cada tarjeta o en un solo archivo.'
-              : isClient
-                ? `Selecciona hasta ${MAX_SELECTION} fotos para retoque tocando el corazón.`
-                : 'Estás viendo esta galería en modo lectura. Ingresa tu PIN para seleccionar y descargar.'}
-          </p>
+          <div>
+            <h1 className="font-display text-2xl font-semibold text-offwhite sm:text-3xl">
+              {gallery.clientName}
+            </h1>
+            <p className="mt-1 text-sm text-white/50">
+              {mode === 'entrega-final'
+                ? 'Descarga tus fotos finales en la calidad original desde cada tarjeta o en un solo archivo.'
+                : isClient
+                  ? `Selecciona hasta ${photoLimit} fotos para retoque tocando el corazón.`
+                  : 'Estás viendo esta galería en modo lectura. Ingresa tu PIN para seleccionar y descargar.'}
+            </p>
+          </div>
+
+          {mode === 'seleccion' && isClient && (
+            <span className="flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3.5 py-2 text-xs font-medium text-gold">
+              <Heart className="h-3.5 w-3.5" fill="currentColor" />
+              Seleccionadas: {selected.length} / {photoLimit}
+            </span>
+          )}
         </motion.div>
 
         {!loading && !loadError && mode === 'entrega-final' && photos.length > 0 && (
@@ -250,11 +273,13 @@ export default function GalleryExperience({ gallery }: { gallery: PublicGallery 
       <SelectionBar
         visible={mode === 'seleccion' && isClient && photos.length > 0}
         count={selected.length}
-        max={MAX_SELECTION}
+        max={photoLimit}
         filter={filter}
         onFilterChange={setFilter}
         onSend={handleSendWhatsApp}
       />
+
+      <LimitReachedToast message={limitMessage} />
 
       <PinModal
         open={pinModalOpen}
@@ -265,6 +290,7 @@ export default function GalleryExperience({ gallery }: { gallery: PublicGallery 
 
       <CompletionModal
         open={completionOpen}
+        photoLimit={photoLimit}
         onClose={() => setCompletionOpen(false)}
         onSendWhatsApp={handleSendWhatsApp}
         onCopyList={handleCopyList}

@@ -26,6 +26,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       slug?: string;
       driveFolderId?: string;
       pin?: string;
+      photoLimit?: number;
     };
 
     const updates: {
@@ -33,6 +34,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       slug?: string;
       driveFolderId?: string;
       pin?: string;
+      photoLimit?: number;
     } = {};
 
     if (body.clientName !== undefined) {
@@ -76,6 +78,20 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         );
       }
       updates.pin = body.pin;
+    }
+
+    if (body.photoLimit !== undefined) {
+      if (
+        !Number.isInteger(body.photoLimit) ||
+        body.photoLimit < 1 ||
+        body.photoLimit > 1000
+      ) {
+        return NextResponse.json(
+          { error: 'El límite de fotos debe ser un número entero entre 1 y 1000.' },
+          { status: 400 }
+        );
+      }
+      updates.photoLimit = body.photoLimit;
     }
 
     const gallery = await updateGallery(params.id, updates);
